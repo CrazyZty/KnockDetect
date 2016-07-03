@@ -13,6 +13,7 @@ import com.Tool.Function.CommonFunction;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private int totalKnockNumber = 0;
     private static int knockNumber = 0;
 
     public final static int UpdateKnockNumber = 0;
@@ -65,8 +66,9 @@ public class MainActivity extends Activity {
             public void handleMessage(Message message) {
                 switch (message.what) {
                     case UpdateKnockNumber:
-                        knockNumberView
-                                .setText(CommonFunction.GetDate() + "：敲击" + knockNumber + "次");
+                        totalKnockNumber += knockNumber;
+                        knockNumberView.setText(CommonFunction.GetDate() + "：敲击" + knockNumber +
+                                "次\n" + "共" + totalKnockNumber + "次");
                         break;
                     case UpdateSensorData:
                         sensorDataView.updateView(linearAccelerationZShowList);

@@ -68,7 +68,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private LinkedList<Float> linearAccelerationXList;
     private LinkedList<Float> linearAccelerationYList;
     private LinkedList<Float> linearAccelerationZList;
-    private LinkedList<Float> offsetLinearAccelerationZList;
+    private LinkedList<Float> uniqueLinearAccelerationZList;
 
     private ArrayList<Float> linearAccelerationZShowList;
 
@@ -88,7 +88,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         accelerationSensor = sensorManager.getDefaultSensor(accelerometerSensorType);
 
         if (null == sensorManager) {
-            LogFunction.error("KnockDetectService", "device not support SensorManager");
+            LogFunction.log("KnockDetectService", "device not support SensorManager");
             return;
         }
 
@@ -97,7 +97,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         linearAccelerationXList = new LinkedList<Float>();
         linearAccelerationYList = new LinkedList<Float>();
         linearAccelerationZList = new LinkedList<Float>();
-        offsetLinearAccelerationZList = new LinkedList<Float>();
+        uniqueLinearAccelerationZList = new LinkedList<Float>();
 
         linearAccelerationZShowList = new ArrayList<Float>();
     }
@@ -244,51 +244,50 @@ public class KnockDetectService extends Service implements SensorEventListener {
             }
         }
 
-        LogFunction.error("stable", "" + stable);
-        LogFunction.error("exceptionNumber", "" + exceptionNumber);
-        LogFunction.error("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
+        LogFunction.log("stable", "" + stable);
+        LogFunction.log("exceptionNumber", "" + exceptionNumber);
+        LogFunction.log("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
     }
 
     // 处理偏移数据列表，如果加速度偏移列表长度超过识别非稳态偏移数据列表长度，则认为现在手机状态该表
     // 变化为非稳态，反之，如果发现加速度偏移数据列表中最大偏移值超过波动区间一定倍数则识别为敲击
     private void handleAccelerationZOffset() {
-        LogFunction.log("handleAccelerationZOffset",
-                "ListSize:" + offsetLinearAccelerationZList.size());
-
-        LogFunction.error("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
+        LogFunction.log("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
 
         int recognitionKnockNumber = 1;
 
-        int accelerationZOffsetListLength = offsetLinearAccelerationZList.size();
+        int uniqueLinearAccelerationZListLength = uniqueLinearAccelerationZList.size();
 
         float accelerationZOffsetAbsolute;
         float maxAccelerationZOffsetAbsolute = 0;
 
-        for (int i = 0; i < accelerationZOffsetListLength; i++) {
-            accelerationZOffsetAbsolute = Math.abs(offsetLinearAccelerationZList.get(i));
+        for (int i = 0; i < uniqueLinearAccelerationZListLength; i++) {
+            accelerationZOffsetAbsolute = Math.abs(uniqueLinearAccelerationZList.get(i));
 
             if (maxAccelerationZOffsetAbsolute < accelerationZOffsetAbsolute) {
                 maxAccelerationZOffsetAbsolute = accelerationZOffsetAbsolute;
             }
 
-            LogFunction.log("handleAccelerationZOffset", "" + offsetLinearAccelerationZList.get(i));
+            LogFunction.log("uniqueLinearAccelerationZList index" + i,
+                    "" + uniqueLinearAccelerationZList.get(i));
         }
 
-        offsetLinearAccelerationZList.clear();
+        uniqueLinearAccelerationZList.clear();
 
-        LogFunction.error("accelerationZOffsetListLength", "" + accelerationZOffsetListLength);
-        LogFunction.error("maxAccelerationZOffset/linearAccelerationZStableOffset",
-                "" + (maxAccelerationZOffsetAbsolute / linearAccelerationZStableOffset));
+        LogFunction.log("accelerationZOffsetListLength", "" + uniqueLinearAccelerationZListLength);
 
-        if (accelerationZOffsetListLength > unstableNumber) {
+        if (uniqueLinearAccelerationZListLength > unstableNumber) {
             stable = false;
             return;
         }
 
+        LogFunction.log("maxAccelerationZOffset/linearAccelerationZStableOffset",
+                "" + (maxAccelerationZOffsetAbsolute / linearAccelerationZStableOffset));
+
         if (maxAccelerationZOffsetAbsolute >
                 linearAccelerationZStableOffset * recognitionKnockRatio) {
-            LogFunction.error("recognitionKnockRatio", "" + recognitionKnockRatio);
-            LogFunction.error("recognitionOffsetRatio", "" + recognitionOffsetRatio);
+            LogFunction.log("recognitionKnockRatio", "" + recognitionKnockRatio);
+            LogFunction.log("recognitionOffsetRatio", "" + recognitionOffsetRatio);
 
             knockRecognitionSuccess(recognitionKnockNumber);
         }
@@ -305,11 +304,11 @@ public class KnockDetectService extends Service implements SensorEventListener {
                 linearAccelerationZAbsolute / linearAccelerationZStableOffset;
 
         if (linearAccelerationZAbsoluteRadio > recognitionOffsetRatio) {
-            offsetLinearAccelerationZList.add(linearAccelerationZ);
+            uniqueLinearAccelerationZList.add(linearAccelerationZ);
 
             currentForecastNumber = forecastNumber;
         } else {
-            if (offsetLinearAccelerationZList.size() > 0) {
+            if (uniqueLinearAccelerationZList.size() > 0) {
                 if (currentForecastNumber > 0) {
                     currentForecastNumber--;
                 } else {
@@ -354,7 +353,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
                 .subscribe(new Subscriber<String>() {
                     @Override
                     public void onCompleted() {
-                        LogFunction.error("事件", "敲击识别通过,敲击次数:" + knockNumber);
+                        LogFunction.log("事件", "敲击识别通过,敲击次数:" + knockNumber);
 
                         MainActivity.UpdateKnockNumber(knockNumber);
 
