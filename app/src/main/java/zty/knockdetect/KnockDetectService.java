@@ -18,7 +18,6 @@ import java.util.LinkedList;
 import rx.Observable;
 import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
-import rx.exceptions.OnErrorThrowable;
 import rx.schedulers.Schedulers;
 
 /**
@@ -38,6 +37,8 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private final int accelerometerSensorType = Sensor.TYPE_ACCELEROMETER;
 
     private final int forecastNumber = 2;
+
+    private final int unstableNumber = 10;
 
     private final int knockRecognitionDuration = 1000;
 
@@ -64,9 +65,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private SensorManager sensorManager;
     private Sensor accelerationSensor;
 
-    private LinkedList<Float> accelerationXList;
-    private LinkedList<Float> accelerationYList;
-    private LinkedList<Float> accelerationZList;
+    private LinkedList<Float> linearAccelerationXList;
+    private LinkedList<Float> linearAccelerationYList;
+    private LinkedList<Float> linearAccelerationZList;
     private LinkedList<Float> offsetLinearAccelerationZList;
 
     private ArrayList<Float> linearAccelerationZShowList;
@@ -93,9 +94,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         sensorManager.registerListener(this, accelerationSensor, SensorManager.SENSOR_DELAY_GAME);
 
-        accelerationXList = new LinkedList<Float>();
-        accelerationYList = new LinkedList<Float>();
-        accelerationZList = new LinkedList<Float>();
+        linearAccelerationXList = new LinkedList<Float>();
+        linearAccelerationYList = new LinkedList<Float>();
+        linearAccelerationZList = new LinkedList<Float>();
         offsetLinearAccelerationZList = new LinkedList<Float>();
 
         linearAccelerationZShowList = new ArrayList<Float>();
@@ -185,16 +186,16 @@ public class KnockDetectService extends Service implements SensorEventListener {
             sensorDataShowIndex++;
 
             if (!stable) {
-                accelerationXList.add(linearAccelerationX);
-                accelerationYList.add(linearAccelerationY);
-                accelerationZList.add(linearAccelerationZ);
+                linearAccelerationXList.add(linearAccelerationX);
+                linearAccelerationYList.add(linearAccelerationY);
+                linearAccelerationZList.add(linearAccelerationZ);
 
-                if (accelerationZList.size() >= stableSectionNumber) {
+                if (linearAccelerationZList.size() >= stableSectionNumber) {
                     stableRecognition();
 
-                    accelerationXList.clear();
-                    accelerationYList.clear();
-                    accelerationZList.clear();
+                    linearAccelerationXList.clear();
+                    linearAccelerationYList.clear();
+                    linearAccelerationZList.clear();
                 }
 
                 return;
@@ -215,7 +216,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         float maxAccelerationZValue = Integer.MIN_VALUE;
 
         for (int i = stableSectionNumber - 1; i >= 0; i--) {
-            accelerationZValue = accelerationZList.get(i);
+            accelerationZValue = linearAccelerationZList.get(i);
 
             if (Math.abs(accelerationZValue) > maxStableOffset) {
                 exceptionNumber++;
@@ -275,8 +276,14 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         offsetLinearAccelerationZList.clear();
 
+        LogFunction.error("accelerationZOffsetListLength", "" + accelerationZOffsetListLength);
         LogFunction.error("maxAccelerationZOffset/linearAccelerationZStableOffset",
                 "" + (maxAccelerationZOffsetAbsolute / linearAccelerationZStableOffset));
+
+        if (accelerationZOffsetListLength > unstableNumber) {
+            stable = false;
+            return;
+        }
 
         if (maxAccelerationZOffsetAbsolute >
                 linearAccelerationZStableOffset * recognitionKnockRatio) {
@@ -338,9 +345,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
             public void call(Subscriber<? super String> subscriber) {
                 try {
                     Thread.sleep(knockRecognitionDuration);
-                } catch (InterruptedException e) {
-                    throw OnErrorThrowable.from(e);
+                } catch (Exception e) {
                 }
+
                 subscriber.onCompleted();
             }
         }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
@@ -348,27 +355,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
                     @Override
                     public void onCompleted() {
                         LogFunction.error("事件", "敲击识别通过,敲击次数:" + knockNumber);
-
-                        //                        if (CommonFunction.isServiceEnable(instance)) {
-                        //                            Intent intent = new Intent(instance, CommandService.class);
-                        //
-                        //                            switch (knockNumber) {
-                        //                                case 0:
-                        //                                case 1:
-                        //                                    break;
-                        //                                case 2:
-                        //                                    //                                    intent.setAction(ActionData.TwoKnockPhone);
-                        //                                    //                                    startService(intent);
-                        //                                    break;
-                        //                                default:
-                        //                                    lastOperateTime = System.currentTimeMillis();
-                        //                                    intent.setAction(ActionData.ThreeKnockPhone);
-                        //                                    startService(intent);
-                        //                                    break;
-                        //                                //                                default:
-                        //                                //                                    break;
-                        //                            }
-                        //                        }
 
                         MainActivity.UpdateKnockNumber(knockNumber);
 
@@ -389,22 +375,22 @@ public class KnockDetectService extends Service implements SensorEventListener {
         return currentValue * weight + lastWeightedMeanValue * (1 - weight);
     }
 
-//    private float[] accelerometerValues = new float[3];
-//    private float[] magneticFieldValues = new float[3];
-//
-//    magneticFieldValues = sensorEvent.values;
-//    accelerometerValues = sensorEvent.values;
-//
-//    private void calculateOrientation() {
-//        float[] values = new float[3];
-//        float[] R = new float[9];
-//
-//        SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues);
-//        SensorManager.getOrientation(R, values);
-//
-//        // 要经过一次数据格式的转换，转换为角度度
-//        values[0] = (float) Math.toDegrees(values[0]);
-//        values[1] = (float) Math.toDegrees(values[1]);
-//        values[2] = (float) Math.toDegrees(values[2]);
-//    }
+    //    private float[] accelerometerValues = new float[3];
+    //    private float[] magneticFieldValues = new float[3];
+    //
+    //    magneticFieldValues = sensorEvent.values;
+    //    accelerometerValues = sensorEvent.values;
+    //
+    //    private void calculateOrientation() {
+    //        float[] values = new float[3];
+    //        float[] R = new float[9];
+    //
+    //        SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues);
+    //        SensorManager.getOrientation(R, values);
+    //
+    //        // 要经过一次数据格式的转换，转换为角度度
+    //        values[0] = (float) Math.toDegrees(values[0]);
+    //        values[1] = (float) Math.toDegrees(values[1]);
+    //        values[2] = (float) Math.toDegrees(values[2]);
+    //    }
 }

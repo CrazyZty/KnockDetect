@@ -60,7 +60,7 @@ public class LogFunction {
 
         try {
             final int beginStackIndex = 2;
-            final int outputStackLength = 2;
+            final int outputStackLength = 0;
             int endStackIndex = beginStackIndex + outputStackLength;
             StackTraceElement[] element = new Throwable().getStackTrace();
 
