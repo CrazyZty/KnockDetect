@@ -27,9 +27,6 @@ import rx.schedulers.Schedulers;
 public class KnockDetectService extends Service implements SensorEventListener {
     private boolean stable;
     private boolean calibrateLinearAcceleration;
-    private boolean horizontalState;
-
-    private final boolean shouldHorizontal = false;
 
     private int calibrateLinearAccelerationIndex;
     private int sensorDataShowIndex;
@@ -39,7 +36,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private final int sensorDataShowNumber = 50;
     private final int sensorDataShowDurationNumber = 5;
     private final int accelerometerSensorType = Sensor.TYPE_ACCELEROMETER;
-    private final int magneticFieldSensorType = Sensor.TYPE_MAGNETIC_FIELD;
 
     private final int forecastNumber = 2;
 
@@ -63,14 +59,10 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private float linearAccelerationZ;
     private float linearAccelerationZStableOffset;
 
-    private float[] accelerometerValues = new float[3];
-    private float[] magneticFieldValues = new float[3];
-
     private final float maxStableOffset = 0.1f;
 
     private SensorManager sensorManager;
     private Sensor accelerationSensor;
-    private Sensor magneticFieldSensor;
 
     private LinkedList<Float> accelerationXList;
     private LinkedList<Float> accelerationYList;
@@ -85,7 +77,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         stable = false;
         calibrateLinearAcceleration = true;
-        horizontalState = false;
 
         calibrateLinearAccelerationIndex = 0;
         sensorDataShowIndex = 0;
@@ -94,7 +85,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerationSensor = sensorManager.getDefaultSensor(accelerometerSensorType);
-        magneticFieldSensor = sensorManager.getDefaultSensor(magneticFieldSensorType);
 
         if (null == sensorManager) {
             LogFunction.error("KnockDetectService", "device not support SensorManager");
@@ -102,8 +92,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
         }
 
         sensorManager.registerListener(this, accelerationSensor, SensorManager.SENSOR_DELAY_GAME);
-        sensorManager
-                .registerListener(this, magneticFieldSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
         accelerationXList = new LinkedList<Float>();
         accelerationYList = new LinkedList<Float>();
@@ -141,20 +129,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
             return;
         }
 
-        if (sensorEvent.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-            magneticFieldValues = sensorEvent.values;
-            calculateOrientation();
-            return;
-        }
-
         if (sensorEvent.sensor.getType() == accelerometerSensorType) {
-            accelerometerValues = sensorEvent.values;
-
-            if (shouldHorizontal && !horizontalState) {
-                stable = false;
-                return;
-            }
-
             float alpha = 0.8f;
 
             float accelerationX = sensorEvent.values[0];
@@ -414,28 +389,22 @@ public class KnockDetectService extends Service implements SensorEventListener {
         return currentValue * weight + lastWeightedMeanValue * (1 - weight);
     }
 
-    private void calculateOrientation() {
-        float[] values = new float[3];
-        float[] R = new float[9];
-
-        SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues);
-        SensorManager.getOrientation(R, values);
-
-        // 要经过一次数据格式的转换，转换为度
-        values[0] = (float) Math.toDegrees(values[0]);
-        values[1] = (float) Math.toDegrees(values[1]);
-        values[2] = (float) Math.toDegrees(values[2]);
-
-        float yDegreesAbsolute = Math.abs(values[1]);
-        float zDegreesAbsolute = Math.abs(values[2]);
-
-        if (zDegreesAbsolute < 15 || zDegreesAbsolute > 165) {
-            if (yDegreesAbsolute < 15) {
-                horizontalState = true;
-                return;
-            }
-        }
-
-        horizontalState = false;
-    }
+//    private float[] accelerometerValues = new float[3];
+//    private float[] magneticFieldValues = new float[3];
+//
+//    magneticFieldValues = sensorEvent.values;
+//    accelerometerValues = sensorEvent.values;
+//
+//    private void calculateOrientation() {
+//        float[] values = new float[3];
+//        float[] R = new float[9];
+//
+//        SensorManager.getRotationMatrix(R, null, accelerometerValues, magneticFieldValues);
+//        SensorManager.getOrientation(R, values);
+//
+//        // 要经过一次数据格式的转换，转换为角度度
+//        values[0] = (float) Math.toDegrees(values[0]);
+//        values[1] = (float) Math.toDegrees(values[1]);
+//        values[2] = (float) Math.toDegrees(values[2]);
+//    }
 }
