@@ -13,15 +13,20 @@ import com.Tool.Function.CommonFunction;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-    private int totalKnockNumber = 0;
-    private static int knockNumber = 0;
+    private boolean stable;
 
-    public final static int UpdateKnockNumber = 0;
-    public final static int UpdateSensorData = 1;
+    private int totalKnockNumber = 0;
+    private int knockNumber = 0;
+
+    public final static int UpdateStableState = 0;
+    public final static int UpdateKnockNumber = 1;
+    public final static int UpdateSensorData = 2;
 
     private ArrayList<Float> linearAccelerationZShowList;
 
+    private TextView stableView;
     private TextView knockNumberView;
+
     private SensorDataView sensorDataView;
 
     private Handler handler;
@@ -50,6 +55,7 @@ public class MainActivity extends Activity {
     }
 
     private void bindView() {
+        stableView = (TextView) findViewById(R.id.stableView);
         knockNumberView = (TextView) findViewById(R.id.knockNumberView);
 
         sensorDataView = (SensorDataView) findViewById(R.id.sensorDataView);
@@ -65,6 +71,13 @@ public class MainActivity extends Activity {
             @Override
             public void handleMessage(Message message) {
                 switch (message.what) {
+                    case UpdateStableState:
+                        if (stable) {
+                            stableView.setText("稳态");
+                        } else {
+                            stableView.setText("非稳态");
+                        }
+                        break;
                     case UpdateKnockNumber:
                         totalKnockNumber += knockNumber;
                         knockNumberView.setText(CommonFunction.GetDate() + "：敲击" + knockNumber +
@@ -80,6 +93,8 @@ public class MainActivity extends Activity {
         knockDetectIntent = new Intent(this, KnockDetectService.class);
 
         startService(knockDetectIntent);
+
+        stableView.setText("非稳态");
     }
 
     @Override
@@ -90,6 +105,14 @@ public class MainActivity extends Activity {
 
         if (knockDetectIntent != null) {
             stopService(knockDetectIntent);
+        }
+    }
+
+    public static void UpdateStable(boolean stable) {
+        if (CommonFunction.isActivityEnable(instance)) {
+            instance.stable = stable;
+
+            Message.obtain(instance.handler, UpdateStableState).sendToTarget();
         }
     }
 

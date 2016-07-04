@@ -49,8 +49,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private float recognitionKnockRatio = 20;
     private float recognitionOffsetRatio = 10;
 
-    private float smoothOffsetMinRatio = 0.1f;
     private float smoothOffsetMaxRatio = 10f;
+
+    private final float alpha = 0.8f;
 
     private float gravityX;
     private float gravityY;
@@ -125,8 +126,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
         }
 
         if (sensorEvent.sensor.getType() == accelerometerSensorType) {
-            float alpha = 0.8f;
-
             float accelerationX = sensorEvent.values[0];
             float accelerationY = sensorEvent.values[1];
             float accelerationZ = sensorEvent.values[2];
@@ -135,13 +134,11 @@ public class KnockDetectService extends Service implements SensorEventListener {
                 recognitionKnockRatio = 20;
                 recognitionOffsetRatio = 10;
 
-                smoothOffsetMinRatio = 0.05f;
                 smoothOffsetMaxRatio = 5f;
             } else {
                 recognitionKnockRatio = 7.5f;
                 recognitionOffsetRatio = 6;
 
-                smoothOffsetMinRatio = 0.01f;
                 smoothOffsetMaxRatio = 2.5f;
             }
 
@@ -232,6 +229,8 @@ public class KnockDetectService extends Service implements SensorEventListener {
             }
         }
 
+        MainActivity.UpdateStable(stable);
+
         LogFunction.log("stable", "" + stable);
         LogFunction.log("exceptionNumber", "" + exceptionNumber);
         LogFunction.log("linearAccelerationZStableSection", "" + linearAccelerationZStableSection);
@@ -262,10 +261,12 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         uniqueLinearAccelerationZList.clear();
 
-        LogFunction.log("uniqueLinearAccelerationZListLength", "" + uniqueLinearAccelerationZListLength);
+        LogFunction.log("uniqueLinearAccelerationZListLength",
+                "" + uniqueLinearAccelerationZListLength);
 
         if (uniqueLinearAccelerationZListLength > unstableListLength) {
             stable = false;
+            MainActivity.UpdateStable(stable);
             return;
         }
 
@@ -304,8 +305,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
             }
         }
 
-        if (linearAccelerationZAbsoluteRadio < smoothOffsetMaxRatio &&
-                linearAccelerationZAbsoluteRadio > smoothOffsetMinRatio) {
+        if (linearAccelerationZAbsoluteRadio < smoothOffsetMaxRatio) {
             float offsetWeight = 0.001f;
 
             linearAccelerationZStableSection =
