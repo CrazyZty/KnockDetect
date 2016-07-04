@@ -38,7 +38,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
     private final int forecastNumber = 2;
 
-    private final int unstableNumber = 10;
+    private final int unstableListLength = 10;
 
     private final int knockRecognitionDuration = 1000;
 
@@ -58,7 +58,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private float linearAccelerationX;
     private float linearAccelerationY;
     private float linearAccelerationZ;
-    private float linearAccelerationZStableOffset;
+    private float linearAccelerationZStableSection;
 
     private final float maxStableOffset = 0.1f;
 
@@ -82,7 +82,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         calibrateLinearAccelerationIndex = 0;
         sensorDataShowIndex = 0;
 
-        linearAccelerationZStableOffset = 0;
+        linearAccelerationZStableSection = 0;
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerationSensor = sensorManager.getDefaultSensor(accelerometerSensorType);
@@ -106,7 +106,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
     public void onDestroy() {
         super.onDestroy();
 
-        linearAccelerationZStableOffset = 0;
+        linearAccelerationZStableSection = 0;
 
         if (null != sensorManager) {
             sensorManager.unregisterListener(this);
@@ -205,9 +205,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
         }
     }
 
-    // 稳态识别，用来判断手机目前是否处于稳定的状态，判断方式:采样50个点，得出平均值，然后计算每个点与平均值之间的偏差，如果大于
-    // 最大偏差就视为异常点，异常点大于最大异常点数目就视为非稳态，反之视为稳态，如果稳态将剔除异常点的数据的平均值作为稳态数据基值，同时将
-    // 将最大Z轴加速度和最小Z轴加速的差值视为波动区间
+    // 稳态识别，用来判断手机目前是否处于稳状，判断方式:采样50个点，然后计算每个点的绝对值，如果
+    // 大于最大偏差就视为异常点，异常点数目大于最大异常点数目就视为非稳态，反之视为稳态，如果识别
+    // 结果为稳态则将剔除异常点后最大Z轴加速度和最小Z轴加速差值的1/2视为波动区间
     private void stableRecognition() {
         int exceptionNumber = 0;
 
@@ -234,25 +234,25 @@ public class KnockDetectService extends Service implements SensorEventListener {
         stable = exceptionNumber <= maxExceptionNumber;
 
         if (stable) {
-            if (linearAccelerationZStableOffset == 0) {
-                linearAccelerationZStableOffset =
+            if (linearAccelerationZStableSection == 0) {
+                linearAccelerationZStableSection =
                         (maxAccelerationZValue - minAccelerationZValue) / 2;
             }
 
-            if (linearAccelerationZStableOffset > maxStableOffset) {
-                linearAccelerationZStableOffset = maxStableOffset;
+            if (linearAccelerationZStableSection > maxStableOffset) {
+                linearAccelerationZStableSection = maxStableOffset;
             }
         }
 
         LogFunction.log("stable", "" + stable);
         LogFunction.log("exceptionNumber", "" + exceptionNumber);
-        LogFunction.log("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
+        LogFunction.log("linearAccelerationZStableSection", "" + linearAccelerationZStableSection);
     }
 
-    // 处理偏移数据列表，如果加速度偏移列表长度超过识别非稳态偏移数据列表长度，则认为现在手机状态该表
+    // 处理偏移数据列表，如果独特加速度列表长度超过识别非稳态独特数据列表长度，则认为现在手机状态
     // 变化为非稳态，反之，如果发现加速度偏移数据列表中最大偏移值超过波动区间一定倍数则识别为敲击
-    private void handleAccelerationZOffset() {
-        LogFunction.log("linearAccelerationZStableOffset", "" + linearAccelerationZStableOffset);
+    private void handleUniqueLinearAccelerationZ() {
+        LogFunction.log("linearAccelerationZStableSection", "" + linearAccelerationZStableSection);
 
         int recognitionKnockNumber = 1;
 
@@ -274,18 +274,18 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         uniqueLinearAccelerationZList.clear();
 
-        LogFunction.log("accelerationZOffsetListLength", "" + uniqueLinearAccelerationZListLength);
+        LogFunction.log("uniqueLinearAccelerationZListLength", "" + uniqueLinearAccelerationZListLength);
 
-        if (uniqueLinearAccelerationZListLength > unstableNumber) {
+        if (uniqueLinearAccelerationZListLength > unstableListLength) {
             stable = false;
             return;
         }
 
-        LogFunction.log("maxAccelerationZOffset/linearAccelerationZStableOffset",
-                "" + (maxAccelerationZOffsetAbsolute / linearAccelerationZStableOffset));
+        LogFunction.log("maxAccelerationZOffsetAbsolute / linearAccelerationZStableSection",
+                "" + (maxAccelerationZOffsetAbsolute / linearAccelerationZStableSection));
 
         if (maxAccelerationZOffsetAbsolute >
-                linearAccelerationZStableOffset * recognitionKnockRatio) {
+                linearAccelerationZStableSection * recognitionKnockRatio) {
             LogFunction.log("recognitionKnockRatio", "" + recognitionKnockRatio);
             LogFunction.log("recognitionOffsetRatio", "" + recognitionOffsetRatio);
 
@@ -293,15 +293,14 @@ public class KnockDetectService extends Service implements SensorEventListener {
         }
     }
 
-    // 敲击识别，获取此时传感器数据获取相对于稳态值的偏移值，如果偏移值大于波动区间一定倍数，则加入到加速度偏移数据列表中，
-    // 如果加速度偏移列表长度超过识别非稳态偏移数据列表长度，则开始处理偏移数据列表，
-    // 反之，如果此时加速度偏移数据列表长度大于0，则开始处理偏移数据列表，同时平滑加速度稳态值
-    // 如果偏移值在一定范围则同时平滑波动区间
+    // 敲击识别，获取此时线性加速度绝对值，如果线性加速度绝对值大于波动区间一定倍数，则加入到独特线性加速度列表中，
+    // 在此时如果此时独特加速度列表长度大于0，如果currentForecastNumber大于0，则currentForecastNumber减一，
+    // 反之，则开始处理独特加速度列表。同时如果线性加速度绝对值在一定范围则用现在的线性加速度绝对值来平滑波动区间。
     private void knockRecognition(float linearAccelerationZ) {
         float linearAccelerationZAbsolute = Math.abs(linearAccelerationZ);
 
         float linearAccelerationZAbsoluteRadio =
-                linearAccelerationZAbsolute / linearAccelerationZStableOffset;
+                linearAccelerationZAbsolute / linearAccelerationZStableSection;
 
         if (linearAccelerationZAbsoluteRadio > recognitionOffsetRatio) {
             uniqueLinearAccelerationZList.add(linearAccelerationZ);
@@ -312,19 +311,18 @@ public class KnockDetectService extends Service implements SensorEventListener {
                 if (currentForecastNumber > 0) {
                     currentForecastNumber--;
                 } else {
-                    handleAccelerationZOffset();
+                    handleUniqueLinearAccelerationZ();
                 }
             }
         }
 
         if (linearAccelerationZAbsoluteRadio < smoothOffsetMaxRatio &&
-                linearAccelerationZAbsoluteRadio >
-                        linearAccelerationZStableOffset * smoothOffsetMinRatio) {
+                linearAccelerationZAbsoluteRadio > smoothOffsetMinRatio) {
             float offsetWeight = 0.001f;
 
-            linearAccelerationZStableOffset =
+            linearAccelerationZStableSection =
                     weightedMean(offsetWeight, linearAccelerationZAbsolute,
-                            linearAccelerationZStableOffset);
+                            linearAccelerationZStableSection);
         }
     }
 
