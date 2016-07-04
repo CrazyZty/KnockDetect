@@ -53,8 +53,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
     private final float alpha = 0.8f;
 
-    private float gravityX;
-    private float gravityY;
     private float gravityZ;
     private float linearAccelerationZ;
     private float linearAccelerationZStableSection;
@@ -126,8 +124,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
         }
 
         if (sensorEvent.sensor.getType() == accelerometerSensorType) {
-            float accelerationX = sensorEvent.values[0];
-            float accelerationY = sensorEvent.values[1];
             float accelerationZ = sensorEvent.values[2];
 
             if (accelerationZ > 0) {
@@ -142,8 +138,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
                 smoothOffsetMaxRatio = 2.5f;
             }
 
-            gravityX = alpha * gravityX + (1 - alpha) * accelerationX;
-            gravityY = alpha * gravityY + (1 - alpha) * accelerationY;
             gravityZ = alpha * gravityZ + (1 - alpha) * accelerationZ;
 
             linearAccelerationZ = accelerationZ - gravityZ;
