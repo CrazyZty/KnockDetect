@@ -47,9 +47,9 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private final int maxExceptionNumber = 5;
 
     private float recognitionKnockRatio = 20;
-    private float recognitionOffsetRatio = 10;
+    private float recognitionUniqueRatio = 10;
 
-    private float smoothOffsetMaxRatio = 10f;
+    private float smoothSectionMaxRatio = 10f;
 
     private final float alpha = 0.8f;
 
@@ -128,14 +128,14 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
             if (accelerationZ > 0) {
                 recognitionKnockRatio = 20;
-                recognitionOffsetRatio = 10;
+                recognitionUniqueRatio = 10;
 
-                smoothOffsetMaxRatio = 5f;
+                smoothSectionMaxRatio = 5f;
             } else {
                 recognitionKnockRatio = 7.5f;
-                recognitionOffsetRatio = 6;
+                recognitionUniqueRatio = 6;
 
-                smoothOffsetMaxRatio = 2.5f;
+                smoothSectionMaxRatio = 2.5f;
             }
 
             gravityZ = alpha * gravityZ + (1 - alpha) * accelerationZ;
@@ -270,7 +270,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         if (maxAccelerationZOffsetAbsolute >
                 linearAccelerationZStableSection * recognitionKnockRatio) {
             LogFunction.log("recognitionKnockRatio", "" + recognitionKnockRatio);
-            LogFunction.log("recognitionOffsetRatio", "" + recognitionOffsetRatio);
+            LogFunction.log("recognitionUniqueRatio", "" + recognitionUniqueRatio);
 
             knockRecognitionSuccess(recognitionKnockNumber);
         }
@@ -285,7 +285,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
         float linearAccelerationZAbsoluteRadio =
                 linearAccelerationZAbsolute / linearAccelerationZStableSection;
 
-        if (linearAccelerationZAbsoluteRadio > recognitionOffsetRatio) {
+        if (linearAccelerationZAbsoluteRadio > recognitionUniqueRatio) {
             uniqueLinearAccelerationZList.add(linearAccelerationZ);
 
             currentForecastNumber = forecastNumber;
@@ -299,7 +299,7 @@ public class KnockDetectService extends Service implements SensorEventListener {
             }
         }
 
-        if (linearAccelerationZAbsoluteRadio < smoothOffsetMaxRatio) {
+        if (linearAccelerationZAbsoluteRadio < smoothSectionMaxRatio) {
             float offsetWeight = 0.001f;
 
             linearAccelerationZStableSection =
