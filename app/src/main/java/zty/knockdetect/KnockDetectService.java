@@ -55,8 +55,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private float gravityX;
     private float gravityY;
     private float gravityZ;
-    private float linearAccelerationX;
-    private float linearAccelerationY;
     private float linearAccelerationZ;
     private float linearAccelerationZStableSection;
 
@@ -65,8 +63,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
     private SensorManager sensorManager;
     private Sensor accelerationSensor;
 
-    private LinkedList<Float> linearAccelerationXList;
-    private LinkedList<Float> linearAccelerationYList;
     private LinkedList<Float> linearAccelerationZList;
     private LinkedList<Float> uniqueLinearAccelerationZList;
 
@@ -94,8 +90,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
 
         sensorManager.registerListener(this, accelerationSensor, SensorManager.SENSOR_DELAY_GAME);
 
-        linearAccelerationXList = new LinkedList<Float>();
-        linearAccelerationYList = new LinkedList<Float>();
         linearAccelerationZList = new LinkedList<Float>();
         uniqueLinearAccelerationZList = new LinkedList<Float>();
 
@@ -155,8 +149,6 @@ public class KnockDetectService extends Service implements SensorEventListener {
             gravityY = alpha * gravityY + (1 - alpha) * accelerationY;
             gravityZ = alpha * gravityZ + (1 - alpha) * accelerationZ;
 
-            linearAccelerationX = accelerationX - gravityX;
-            linearAccelerationY = accelerationY - gravityY;
             linearAccelerationZ = accelerationZ - gravityZ;
 
             if (calibrateLinearAcceleration) {
@@ -186,15 +178,11 @@ public class KnockDetectService extends Service implements SensorEventListener {
             sensorDataShowIndex++;
 
             if (!stable) {
-                linearAccelerationXList.add(linearAccelerationX);
-                linearAccelerationYList.add(linearAccelerationY);
                 linearAccelerationZList.add(linearAccelerationZ);
 
                 if (linearAccelerationZList.size() >= stableSectionNumber) {
                     stableRecognition();
 
-                    linearAccelerationXList.clear();
-                    linearAccelerationYList.clear();
                     linearAccelerationZList.clear();
                 }
 
